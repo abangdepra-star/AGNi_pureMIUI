@@ -1,0 +1,41 @@
+name: Build AgNi Kernel HyperOS
+
+on:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Source Code
+        uses: actions/checkout@v3
+
+      - name: Setup Build Environment
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y build-essential bc bison flex libssl-dev libncurses5-dev libelf-dev clang llvm
+
+      - name: Download Toolchain (Clang)
+        run: |
+          git clone https://github.com/kdrag0n/proton-clang --depth=1 clang
+
+      - name: Compile AgNi Kernel
+        run: |
+          export ARCH=arm64
+          export SUBARCH=arm64
+          export PATH=$(pwd)/clang/bin:$PATH
+          
+          make O=out ARCH=arm64 agni_miatoll_defconfig
+          
+          make -j$(nproc) O=out \
+            ARCH=arm64 \
+            CC=clang \
+            CLANG_TRIPLE=aarch64-linux-gnu- \
+            CROSS_COMPILE=aarch64-linux-android- \
+            CROSS_COMPILE_ARM32=arm-linux-androideabi-
+
+      - name: Upload Kernel Artifact
+        uses: actions/upload-artifact@v3
+        with:
+          name: AgNi-HyperOS-2.5GHz-Kernel
+          path: out/arch/arm64/boot/Image.gz-dtb
